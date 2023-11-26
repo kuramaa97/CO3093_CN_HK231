@@ -14,6 +14,7 @@ python3 -m pip install psycopg2
 Installation from source is straightforward:
 ```
 $ git clone https://github.com/kuramaa97/CO3093_CN_HK231.git
+$ cd CO3093_CN_HK231
 ```
 ## Usage
 1. Start the central server:
@@ -24,12 +25,12 @@ $ git clone https://github.com/kuramaa97/CO3093_CN_HK231.git
 
 ## Features
 1. The server has a simple command-shell interpreter
-- `discover hostname`: discover the list of local files of the host named hostname
-- `ping hostname`: live check the host named hostname
+    - `discover hostname`: discover the list of local files of the host named hostname
+    - `ping hostname`: live check the host named hostname
 
 2. The client has a simple command-shell interpreter that is used to accept two kinds of commands.
-- `publish lname fname`: a local file (which is stored in the client's file system at lname) is added to the client's repository as a file named fname and this information is conveyed to the server.
-- `fetch fname`: fetch some copy of the target file and add it to the local repository.
+    - `publish lname fname`: a local file (which is stored in the client's file system at lname) is added to the client's repository as a file named fname and this information is conveyed to the server.
+    - `fetch fname`: fetch some copy of the target file and add it to the local repository.
 
 ## Example
 ### Server side
