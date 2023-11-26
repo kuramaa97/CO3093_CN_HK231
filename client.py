@@ -7,6 +7,14 @@ import shlex
 
 stop_event = threading.Event()
 
+def get_local_files(directory='.'):
+    try:
+        files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+        return files
+    except Exception as e:
+        return f"Error: Unable to list files - {e}"
+
+
 def handle_file_request(conn, shared_files_dir):
     try:
         data = conn.recv(4096).decode()
@@ -15,6 +23,8 @@ def handle_file_request(conn, shared_files_dir):
             lname = command['lname']
             file_path = os.path.join(shared_files_dir, lname)
             send_file_to_client(conn, file_path)
+
+
     finally:
         conn.close()
 
@@ -61,7 +71,6 @@ def publish_file(sock, lname, fname):
     sock.sendall(json.dumps(command).encode() + b'\n')
     response = sock.recv(4096).decode()
     print(response)
-
 
 
 def fetch_file(sock, fname):
@@ -114,8 +123,6 @@ def request_file_from_peer(ip_address, lname,fname):
         peer_sock.close()
 
 
-
-
 def connect_to_server(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
@@ -126,6 +133,19 @@ def connect_to_server(host, port):
     return sock
 
 
+def listen_to_server(sock):
+    while not stop_event.is_set():
+        try:
+            server_msg = sock.recv(4096).decode()
+            if server_msg:
+                command = json.loads(server_msg)
+                if command['action'] == 'list_files':
+                    local_files = get_local_files()
+                    response = json.dumps({'action': 'file_list', 'files': local_files})
+                    sock.sendall(response.encode())
+        except Exception as e:
+            print(f"Error receiving message from server: {e}")
+            break
 
 def main(server_host, server_port):
     # Start the host service thread
@@ -134,6 +154,9 @@ def main(server_host, server_port):
 
     # Connect to the server
     sock = connect_to_server(server_host, server_port)
+
+    server_listener_thread = threading.Thread(target=listen_to_server, args=(sock,))
+    server_listener_thread.start()
 
 
     try:
@@ -153,11 +176,10 @@ def main(server_host, server_port):
                 break  # Exit the main loop
             else:
                 print("Invalid command.")
+
     finally:
             sock.close()
             host_service_thread.join()  # Wait for the host service thread to finish
-
-
 
 
 if __name__ == "__main__":

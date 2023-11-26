@@ -30,7 +30,7 @@ def client_handler(conn, addr):
 
         while True:
             data = conn.recv(4096).decode()
-            log_event(f"Received data from {addr}: {data}")
+            # log_event(f"Received data from {addr}: {data}")
             if not data:
                 break
 
@@ -62,6 +62,9 @@ def client_handler(conn, addr):
                 else:
                     conn.sendall(json.dumps({'error': 'File not available'}).encode())
 
+            elif command['action'] == 'file_list':
+                files = command['files']
+                print(f"List of files : {files}")
 
     except Exception as e:
         logging.exception(f"An error occurred while handling client {addr}: {e}")
@@ -71,6 +74,16 @@ def client_handler(conn, addr):
         conn.close()
         log_event(f"Connection with {addr} has been closed.")
 
+def request_file_list_from_client(hostname):
+    if hostname in active_connections:
+        conn = active_connections[hostname]
+        try:
+            conn.sendall(json.dumps({'action': 'list_files'}).encode())
+        except Exception as e:
+            return f"Error: {e}"
+    else:
+        return "Error: Client not connected"
+
 def server_command_shell():
     while True:
         cmd_input = input("Server command: ")
@@ -79,9 +92,7 @@ def server_command_shell():
             action = cmd_parts[0]
             if action == "discover" and len(cmd_parts) == 2:
                 hostname = cmd_parts[1]
-                cur.execute("SELECT fname FROM client_files WHERE hostname = %s", (hostname,))
-                files = cur.fetchall()
-                print(f"Files for {hostname}: {files}")
+                request_file_list_from_client(hostname)
             elif action == "ping" and len(cmd_parts) == 2:
                 hostname = cmd_parts[1]
                 is_online = hostname in active_connections
