@@ -47,7 +47,8 @@ def client_handler(conn, addr):
             elif command['action'] == 'fetch':
                 fname = command['fname']
                 # Query the database for the IP addresses of the clients that have the file
-                cur.execute("SELECT DISTINCT ON (address, hostname, fname)   address, hostname, lname FROM client_files WHERE fname = %s", (fname,))
+                cur.execute(f"""SELECT DISTINCT ON (address, hostname, fname) 
+                                address, hostname, lname FROM client_files WHERE fname = %s""", (fname,))
                 results = cur.fetchall()
                 if results:
                     # Create a list of dictionaries with 'hostname' and 'ip' keyss
@@ -56,16 +57,15 @@ def client_handler(conn, addr):
                 else:
                     conn.sendall(json.dumps({'error': 'File not available'}).encode())
 
-
-
             elif command['action'] == 'discover':
                 hostname = command['hostname']
+                # Query the database for the file name on database of a specified client
                 cur.execute("SELECT fname FROM client_files WHERE hostname = %s", (hostname,))
                 files = cur.fetchall()
                 conn.sendall(json.dumps({'files': files}).encode())
 
             elif command['action'] == 'ping':
-                hostname = command['hostname']
+                hostname = command['hostname'] 
                 cur.execute("SELECT 1 FROM client_files WHERE hostname = %s LIMIT 1", (hostname,))
                 is_online = cur.fetchone() is not None
                 response = 'online' if is_online else 'offline'
