@@ -18,11 +18,12 @@ def log_event(message):
 def update_client_info(hostname, addr, fname, lname):
     # Update the client's file list in the database
     cur.execute(
-        f"""INSERT INTO client_files (lname, fname, hostname, address) VALUES (%s, %s, %s, %s) 
-            ON CONFLICT (address, fname, hostname) DO UPDATE SET lname = EXCLUDED.lname""",
+        "INSERT INTO client_files (lname, fname, hostname, address) VALUES (%s, %s, %s, %s) ON CONFLICT (address, fname, hostname) DO UPDATE SET lname = EXCLUDED.lname",
         (lname, fname, hostname, addr)
     )
     conn.commit()
+
+active_connections = {}  
 
 def client_handler(conn, addr):
     try:
@@ -35,7 +36,12 @@ def client_handler(conn, addr):
 
             command = json.loads(data)
 
-            if command['action'] == 'publish':
+            if command.get('action') == 'introduce':
+                client_hostname = command.get('hostname')
+                active_connections[client_hostname] = conn
+                log_event(f"Connection established with {addr[0]} ({client_hostname})")
+
+            elif command['action'] == 'publish':
                 hostname = command['hostname']
                 fname = command['fname']
                 lname= command['lname']
@@ -47,33 +53,21 @@ def client_handler(conn, addr):
             elif command['action'] == 'fetch':
                 fname = command['fname']
                 # Query the database for the IP addresses of the clients that have the file
-                cur.execute(f"""SELECT DISTINCT ON (address, hostname, fname) 
-                                address, hostname, lname FROM client_files WHERE fname = %s""", (fname,))
+                cur.execute("SELECT DISTINCT ON (address, hostname, fname)   address, hostname, lname FROM client_files WHERE fname = %s", (fname,))
                 results = cur.fetchall()
                 if results:
-                    # Create a list of dictionaries with 'hostname' and 'ip' keyss
-                    peers_info = [{'hostname': hostname, 'ip': address, 'lname': lname} for address, hostname,lname in results]
+                    # Create a list of dictionaries with 'hostname' and 'ip' keys
+                    peers_info = [{'hostname': hostname, 'ip': address, 'lname': lname} for address, hostname, lname in results if hostname in active_connections]
                     conn.sendall(json.dumps({'addresses': peers_info}).encode())
                 else:
                     conn.sendall(json.dumps({'error': 'File not available'}).encode())
 
-            elif command['action'] == 'discover':
-                hostname = command['hostname']
-                # Query the database for the file name on database of a specified client
-                cur.execute("SELECT fname FROM client_files WHERE hostname = %s", (hostname,))
-                files = cur.fetchall()
-                conn.sendall(json.dumps({'files': files}).encode())
-
-            elif command['action'] == 'ping':
-                hostname = command['hostname'] 
-                cur.execute("SELECT 1 FROM client_files WHERE hostname = %s LIMIT 1", (hostname,))
-                is_online = cur.fetchone() is not None
-                response = 'online' if is_online else 'offline'
-                conn.sendall(json.dumps({'status': response}).encode())
 
     except Exception as e:
         logging.exception(f"An error occurred while handling client {addr}: {e}")
     finally:
+        if client_hostname:
+            del active_connections[client_hostname]  
         conn.close()
         log_event(f"Connection with {addr} has been closed.")
 
@@ -90,8 +84,7 @@ def server_command_shell():
                 print(f"Files for {hostname}: {files}")
             elif action == "ping" and len(cmd_parts) == 2:
                 hostname = cmd_parts[1]
-                cur.execute("SELECT 1 FROM client_files WHERE hostname = %s LIMIT 1", (hostname,))
-                is_online = cur.fetchone() is not None
+                is_online = hostname in active_connections
                 status = 'online' if is_online else 'offline'
                 print(f"Host {hostname} is {status}.")
             elif action == "exit":
@@ -108,7 +101,8 @@ def start_server(host='0.0.0.0', port=65432):
     try:
         while True:
             conn, addr = server_socket.accept()
-            log_event(f"Accepted connection from {addr}")
+            # host = server_socket.getsockname()
+            # log_event(f"Accepted connection from {addr}, hostname is {host}")
             thread = threading.Thread(target=client_handler, args=(conn, addr))
             thread.start()
             log_event(f"Active connections: {threading.active_count() - 1}")
