@@ -1,4 +1,4 @@
-# `Peer-to-Peer File Transfer Project`
+# `Peer-to-Peer File-Sharing Application`
 Computer Networking (CO3093) - Semester 231 - HCMUT
 
 ## Overview
