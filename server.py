@@ -9,7 +9,7 @@ import sys
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Establish a connection to the PostgreSQL database
-conn = psycopg2.connect(dbname="MMT", user="postgres", password="061203", host="localhost", port="4000")
+conn = psycopg2.connect(dbname="MMT", user="postgres", password="123456", host="localhost", port="5432") # replace this with your PostgreSQL creds
 cur = conn.cursor()
 
 def log_event(message):
@@ -24,6 +24,8 @@ def update_client_info(hostname, addr, fname, lname):
     conn.commit()
 
 active_connections = {}  
+host_files = {}
+print(host_files)
 
 def client_handler(conn, addr):
     try:
@@ -77,12 +79,29 @@ def client_handler(conn, addr):
 def request_file_list_from_client(hostname):
     if hostname in active_connections:
         conn = active_connections[hostname]
-        try:
-            conn.sendall(json.dumps({'action': 'list_files'}).encode())
-        except Exception as e:
-            return f"Error: {e}"
+        ip_address, _ = conn.getpeername()  # Get the IP address of the peer socket
+        print(ip_address)
+        peer_port = 65433  # The port where the peer service is expected to be running
+        peer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        peer_sock.connect((ip_address, peer_port))
+        request = {'action': 'request_file_list'}
+        peer_sock.sendall(json.dumps(request).encode() + b'\n')
+        response = json.loads(peer_sock.recv(4096).decode())
+        print(response)
+        peer_sock.close()
+        if 'files' in response:
+            return response['files']
+        else:
+            return "Error: No file list in response"
     else:
         return "Error: Client not connected"
+
+def discover_files(hostname):
+    # Connect to the client and request the file list
+    # This function should be implemented according to your application's protocol
+    files = request_file_list_from_client(hostname)
+    print(f"Files on {hostname}: {files}")
+
 
 def server_command_shell():
     while True:
@@ -92,7 +111,8 @@ def server_command_shell():
             action = cmd_parts[0]
             if action == "discover" and len(cmd_parts) == 2:
                 hostname = cmd_parts[1]
-                request_file_list_from_client(hostname)
+                thread = threading.Thread(target=discover_files, args=(hostname,))
+                thread.start()
             elif action == "ping" and len(cmd_parts) == 2:
                 hostname = cmd_parts[1]
                 is_online = hostname in active_connections

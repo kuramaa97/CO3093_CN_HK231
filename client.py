@@ -18,12 +18,16 @@ def get_local_files(directory='.'):
 def handle_file_request(conn, shared_files_dir):
     try:
         data = conn.recv(4096).decode()
+        print(data)
         command = json.loads(data)
         if command['action'] == 'send_file':
             lname = command['lname']
             file_path = os.path.join(shared_files_dir, lname)
             send_file_to_client(conn, file_path)
-
+        elif command['action'] == 'request_file_list':
+            files = get_local_files(shared_files_dir)
+            response = {'files': files}
+            conn.sendall(json.dumps(response).encode() + b'\n')
 
     finally:
         conn.close()
@@ -46,6 +50,7 @@ def start_host_service(port, shared_files_dir):
         try:
             server_sock.settimeout(1) 
             conn, addr = server_sock.accept()
+            print(f"Accepted connection from {addr}")
             thread = threading.Thread(target=handle_file_request, args=(conn, shared_files_dir))
             thread.start()
         except socket.timeout:
@@ -71,6 +76,7 @@ def publish_file(sock, lname, fname):
     sock.sendall(json.dumps(command).encode() + b'\n')
     response = sock.recv(4096).decode()
     print(response)
+
 
 
 def fetch_file(sock, fname):
@@ -123,6 +129,8 @@ def request_file_from_peer(ip_address, lname,fname):
         peer_sock.close()
 
 
+
+
 def connect_to_server(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
@@ -133,19 +141,6 @@ def connect_to_server(host, port):
     return sock
 
 
-def listen_to_server(sock):
-    while not stop_event.is_set():
-        try:
-            server_msg = sock.recv(4096).decode()
-            if server_msg:
-                command = json.loads(server_msg)
-                if command['action'] == 'list_files':
-                    local_files = get_local_files()
-                    response = json.dumps({'action': 'file_list', 'files': local_files})
-                    sock.sendall(response.encode())
-        except Exception as e:
-            print(f"Error receiving message from server: {e}")
-            break
 
 def main(server_host, server_port):
     # Start the host service thread
@@ -154,9 +149,6 @@ def main(server_host, server_port):
 
     # Connect to the server
     sock = connect_to_server(server_host, server_port)
-
-    server_listener_thread = threading.Thread(target=listen_to_server, args=(sock,))
-    server_listener_thread.start()
 
 
     try:
@@ -183,6 +175,7 @@ def main(server_host, server_port):
 
 
 if __name__ == "__main__":
-    SERVER_HOST = '192.168.1.14'  # Replace with your server's IP address
+    # 35.221.72.247	
+    SERVER_HOST = '35.221.72.247'  # Replace with your server's IP address
     SERVER_PORT = 65432
     main(SERVER_HOST, SERVER_PORT)
