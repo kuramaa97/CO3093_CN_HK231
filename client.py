@@ -18,7 +18,6 @@ def get_local_files(directory='.'):
 def handle_file_request(conn, shared_files_dir):
     try:
         data = conn.recv(4096).decode()
-        print(data)
         command = json.loads(data)
         if command['action'] == 'send_file':
             lname = command['lname']
@@ -50,7 +49,6 @@ def start_host_service(port, shared_files_dir):
         try:
             server_sock.settimeout(1) 
             conn, addr = server_sock.accept()
-            print(f"Accepted connection from {addr}")
             thread = threading.Thread(target=handle_file_request, args=(conn, shared_files_dir))
             thread.start()
         except socket.timeout:
@@ -174,8 +172,12 @@ def main(server_host, server_port):
             host_service_thread.join()  # Wait for the host service thread to finish
 
 
+
+
+
+
 if __name__ == "__main__":
     # 35.221.72.247	
-    SERVER_HOST = '35.221.72.247'  # Replace with your server's IP address
+    SERVER_HOST = '192.168.1.8'  # Replace with your server's IP address
     SERVER_PORT = 65432
     main(SERVER_HOST, SERVER_PORT)

@@ -9,7 +9,7 @@ import sys
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Establish a connection to the PostgreSQL database
-conn = psycopg2.connect(dbname="MMT", user="postgres", password="123456", host="localhost", port="5432") # replace this with your PostgreSQL creds
+conn = psycopg2.connect(dbname="MMT", user="postgres", password="=gHQe[F4_K7l%mSc", host="34.85.62.251", port="5432")
 cur = conn.cursor()
 
 def log_event(message):

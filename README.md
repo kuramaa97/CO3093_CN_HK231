@@ -57,7 +57,7 @@ Host Lio-PC is offline.
 ### Client side
 
 ```
-python3 client.py
+$ python3 client.py
 Enter command (publish lname fname, fetch fname, exit): publish Hutao.rar 210.rar
 File list updated successfully.
 Enter command (publish lname fname, fetch fname, exit): fetch video.mp4
