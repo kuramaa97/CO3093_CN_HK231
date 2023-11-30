@@ -27,6 +27,9 @@ def handle_file_request(conn, shared_files_dir):
             files = get_local_files(shared_files_dir)
             response = {'files': files}
             conn.sendall(json.dumps(response).encode() + b'\n')
+        elif command['action'] == 'ping':
+            response = 'Pekowide'
+            conn.sendall(response.encode() + b'\n')
 
     finally:
         conn.close()
@@ -178,6 +181,6 @@ def main(server_host, server_port):
 
 if __name__ == "__main__":
     # 35.221.72.247	
-    SERVER_HOST = '192.168.1.8'  # Replace with your server's IP address
+    SERVER_HOST = '192.168.1.33'  # Replace with your server's IP address
     SERVER_PORT = 65432
     main(SERVER_HOST, SERVER_PORT)

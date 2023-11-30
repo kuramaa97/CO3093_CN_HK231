@@ -9,7 +9,7 @@ import sys
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Establish a connection to the PostgreSQL database
-conn = psycopg2.connect(dbname="MMT", user="postgres", password="=gHQe[F4_K7l%mSc", host="34.85.62.251", port="5432")
+conn = psycopg2.connect(dbname="", user="postgres", password="", host="", port="5432")
 cur = conn.cursor()
 
 def log_event(message):
@@ -79,8 +79,9 @@ def client_handler(conn, addr):
 def request_file_list_from_client(hostname):
     if hostname in active_connections:
         conn = active_connections[hostname]
+        print(active_connections[hostname])
         ip_address, _ = conn.getpeername()  # Get the IP address of the peer socket
-        print(ip_address)
+        # print(ip_address)
         peer_port = 65433  # The port where the peer service is expected to be running
         peer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         peer_sock.connect((ip_address, peer_port))
@@ -102,6 +103,30 @@ def discover_files(hostname):
     files = request_file_list_from_client(hostname)
     print(f"Files on {hostname}: {files}")
 
+def ping_host(hostname):
+    # Connect to the client and request the file list
+    # This function should be implemented according to your application's protocol
+    cur.execute("SELECT address FROM client_files WHERE hostname = %s", (hostname,))
+    results = cur.fetchone()  
+    ip_address = results[0]
+    print(ip_address)
+    if ip_address:
+        peer_port = 65433  # The port where the peer service is expected to be running
+        peer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        peer_sock.connect((ip_address, peer_port))
+        request = {'action': 'ping'}
+        peer_sock.sendall(json.dumps(request).encode() + b'\n')
+        response = peer_sock.recv(4096).decode()
+        print(response)
+        peer_sock.close()
+        if response:
+            print(f"{hostname} is online!")
+        else:
+            print(f"{hostname} is offline!")
+    else:
+        print("There is no host with that name")
+
+
 
 def server_command_shell():
     while True:
@@ -115,9 +140,8 @@ def server_command_shell():
                 thread.start()
             elif action == "ping" and len(cmd_parts) == 2:
                 hostname = cmd_parts[1]
-                is_online = hostname in active_connections
-                status = 'online' if is_online else 'offline'
-                print(f"Host {hostname} is {status}.")
+                thread = threading.Thread(target=ping_host, args=(hostname,))
+                thread.start()
             elif action == "exit":
                 break
             else:
