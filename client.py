@@ -34,6 +34,7 @@ def handle_file_request(conn, shared_files_dir):
     finally:
         conn.close()
 
+
 def send_file_to_client(conn, file_path):
     with open(file_path, 'rb') as f:
         while True:
@@ -41,6 +42,7 @@ def send_file_to_client(conn, file_path):
             if not bytes_read:
                 break
             conn.sendall(bytes_read)
+
 
 def start_host_service(port, shared_files_dir):
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -79,7 +81,6 @@ def publish_file(sock, lname, fname):
     print(response)
 
 
-
 def fetch_file(sock, fname):
     command = {"action": "fetch", "fname": fname}
     sock.sendall(json.dumps(command).encode() + b'\n')
@@ -107,18 +108,17 @@ def fetch_file(sock, fname):
 
 
 def request_file_from_peer(ip_address, lname,fname):
-    peer_port = 65433  # The port where the peer service is expected to be running
+    peer_port = 65433 
     peer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         peer_sock.connect((ip_address, peer_port))
         peer_sock.sendall(json.dumps({'action': 'send_file', 'lname': lname}).encode() + b'\n')
-  
-        # Proceed with file reception...
-   # Assume the peer is sending the file immediately after the request
+
+        # Peer will send the file in chunks of 4096 bytes
         with open(fname, 'wb') as f:
             while True:
                 data = peer_sock.recv(4096)
-                if not data:  # No more data from peer
+                if not data:
                     break
                 f.write(data)
 
@@ -128,8 +128,6 @@ def request_file_from_peer(ip_address, lname,fname):
         print(f"An error occurred while connecting to peer at {ip_address}:{peer_port} - {e}")
     finally:
         peer_sock.close()
-
-
 
 
 def connect_to_server(host, port):
@@ -142,15 +140,12 @@ def connect_to_server(host, port):
     return sock
 
 
-
 def main(server_host, server_port):
-    # Start the host service thread
     host_service_thread = threading.Thread(target=start_host_service, args=(65433, './'))
     host_service_thread.start()
 
     # Connect to the server
     sock = connect_to_server(server_host, server_port)
-
 
     try:
         while True:
@@ -164,23 +159,19 @@ def main(server_host, server_port):
                 _, fname = command_parts
                 fetch_file(sock, fname)
             elif user_input.lower() == 'exit':
-                stop_event.set()  # Signal all threads to stop
+                stop_event.set()  # Stop the host service thread
                 sock.close()
-                break  # Exit the main loop
+                break
             else:
                 print("Invalid command.")
 
     finally:
             sock.close()
-            host_service_thread.join()  # Wait for the host service thread to finish
-
-
-
-
+            host_service_thread.join()
 
 
 if __name__ == "__main__":
-    # 35.221.72.247	
-    SERVER_HOST = '192.168.1.33'  # Replace with your server's IP address
+    # Replace with your server's IP address and port number
+    SERVER_HOST = '192.168.1.33'
     SERVER_PORT = 65432
     main(SERVER_HOST, SERVER_PORT)
